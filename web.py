@@ -1,55 +1,10 @@
 # coding: UTF-8
 from flask import Flask, request, session, redirect, send_from_directory
 from time import localtime, strftime
-import csv, codecs, sqlite3
-import sys
+import csv, codecs, sys, socket, threading
+from global_vars import *
 reload(sys)
 sys.setdefaultencoding('utf-8')
-
-# 设备信息类
-class Client:
-	def __init__(self, temp, humid, lux, spd, valve, time, date):
-		self.temp = temp
-		self.humid = humid
-		self.lux = lux
-		self.spd = spd
-		self.valve = valve
-		self.time = time
-		self.date = date
-
-	def update(self, temp, humid, lux, spd, valve, time, date):
-		self.temp = temp
-		self.humid = humid
-		self.lux = lux
-		self.spd = spd
-		self.valve = valve
-		self.time = time
-		self.date = date
-
-# 数据库类
-class DB:
-	def __init__(self):
-		self.conn = sqlite3.connect('history.db', check_same_thread = False)
-		self.cur = self.conn.cursor()
-
-	def addData(self, id, temp, humid, lux, spd, valve, time, date):
-		self.cur.execute('INSERT INTO History(id, temp, humid, lux, spd, valve, time, date) VALUES("%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s")'%(id, temp, humid, lux, spd, valve, time, date))
-		self.conn.commit()
-
-	def getDates(self):
-		set = self.cur.execute('SELECT DISTINCT date FROM History ORDER BY date DESC').fetchall()
-		result = [i[0] for i in set]
-		return result
-
-	def getData(self, fr, to):
-		set = self.cur.execute('SELECT * FROM History WHERE date BETWEEN "%s" AND "%s" ORDER BY date ASC'%(fr, to)).fetchall()
-		return set
-
-# 初始化全局变量
-app = Flask(__name__)
-clients = {}
-app.secret_key = 'try me' # 修改成私有字符串
-db = DB()
 
 #------------页面部分------------
 # 根页面
@@ -57,13 +12,12 @@ db = DB()
 def home():
 	if 'admin' not in session:
 		return redirect('/login')
-	#<head><meta http-equiv="refresh" content="10"></head>
 	content = u'''
-				
+				<head><meta http-equiv="refresh" content="10"></head>
 				<input type="button" value="注销" onclick="window.location.href='/logout'"/>
 				<input type="button" value="导出数据" onclick="window.location.href='/getLog'"/><br />
 			'''
-	if not clients:
+	if not clients:####################clients无法全局
 		content += u'<hl>无设备</hl>'
 	else:
 		for i in clients:
@@ -86,12 +40,10 @@ def home():
 
 # 电磁阀
 # POST事件用于根页面电磁阀状态更改的数据处理
-# GET事件用于设备获取最新电磁阀状态
-@app.route('/valveHandle', methods = ['POST', 'GET'])
+@app.route('/valveHandle', methods = ['POST'])
 def valveHandle():
 	if 'admin' not in session:
 		return redirect('/login')
-
 	id = request.form.get('id')
 	if id in clients:
 		valve_stat = 0
@@ -100,13 +52,10 @@ def valveHandle():
 				continue
 			valve_stat += pow(2, int(request.form.get(i)))
 		clients[id].valve = str(valve_stat)
-		return '<script>alert("ok");window.location.href="/";</script>'
+		return redirect('/')
 
-	id = request.args['id']
-	if id in clients:
-		return clients[id].valve
 	return ''
-
+'''
 # 提交新数据
 # data: /post?id=1&temp=20&humid=50&lux=1000&spd=3&valve=5
 @app.route('/post', methods = ['GET'])
@@ -127,7 +76,7 @@ def post():
 
 	db.addData(id, temp, humid, lux, spd, valve, time, date)
 	return ''
-
+'''
 # 下载记录
 @app.route('/getLog', methods = ['POST', 'GET'])
 def getLog():
@@ -153,7 +102,7 @@ def getLog():
 # 登录页面
 @app.route('/login', methods = ['POST', 'GET'])
 def login():
-	if request.form.get('username') == 'admin' and request.form.get('password') == '123456':
+	if request.form.get('username') == username and request.form.get('password') == password:
 		session[request.form.get('username')] = True
 		return redirect('/')
 	return u'''
@@ -173,6 +122,36 @@ def logout():
 
 
 #----------各种处理函数----------
+# 提交数据
+# TODO: 建立TCP服务器和多线程来处理设备提交的新数据，提交完后返回电磁阀状态
+# id=1,temp=20,humid=50,lux=1000,spd=3,valve=5
+def post(sock, addr):
+	print '%s:%s established'%addr
+	while True:
+		rawdata = sock.recv(1024)
+		if rawdata == 'bye':
+			break
+		data = rawdata.split(',')
+		valve = data[5]
+		data = {"id":  data[0],
+				"temp": data[1],
+				"humid": data[2],
+				"lux": data[3],
+				"spd": data[4]}
+		data["date"] = strftime("%Y-%m-%d", localtime())
+		data["time"] = strftime("%H:%M:%S", localtime())
+
+		#import pdb; pdb.set_trace()
+		id = data["id"]
+		if not clients.has_key(id):
+			clients[id] = Client(valve, **data)
+		else:
+			clients[id].update(**data)
+		sock.send(clients[id].valve)
+		db.addData(valve = clients[id].valve, **data)
+	print '%s:%s closed'%addr
+	sock.close()
+
 # 电磁阀状态
 def getValveStat(input):
 	input = int(input)
@@ -194,8 +173,22 @@ def saveFile(data, fr, to):
 		for i in data:
 			writer.writerow(i)
 	return fname
+
+# socket独立线程
+def recvThd():
+	recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	recv.bind(('localhost', 1234))
+	recv.listen(maxClients)
+	while True:
+		sock, addr = recv.accept()
+		t = threading.Thread(target = post, args=(sock, addr))
+		t.start()
 #--------------------------------
 
 # 主函数
 if __name__ == '__main__':
-	app.run(port = 8000, debug = True)
+	t = threading.Thread(target = recvThd)
+	t.setDaemon(True)
+	t.start()
+	app.run(port = 8000, debug = True, use_reloader = False)
