@@ -1,0 +1,35 @@
+<html>
+	<head>
+		<script type="text/javascript">
+			var xmlhttp;
+			if (window.XMLHttpRequest)
+				xmlhttp = new XMLHttpRequest();
+			else
+				xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+			xmlhttp.onreadystatechange = function() {
+				if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+					var response = xmlhttp.responseText;
+					if(response != '') {
+						var jsonArr = JSON.parse(response);
+						var data = '';
+						for(var i in jsonArr) {
+							console.log(jsonArr[i])
+							data += "<option value =" + jsonArr[i] + ">"+ jsonArr[i] + "</option>"
+						}
+						document.getElementById("from").innerHTML = data;
+						document.getElementById("to").innerHTML = data;
+					}
+				}
+			}
+			xmlhttp.open("GET", "/getDate", true);
+			xmlhttp.send();
+		</script>
+	</head>
+	<body>
+		<form method="post" action="/downLog">
+			<p>从：<select id="from" name="from"></select>
+			<p>到：<select id="to" name="to"></select>
+			<p><input type=submit value="下载">
+		</form>
+	</body>
+</html>
