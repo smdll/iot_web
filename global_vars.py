@@ -1,7 +1,7 @@
 # coding: UTF-8
 # 全局变量、类定义
 from flask import Flask
-import sqlite3
+import sqlite3, ConfigParser
 
 # 设备信息类
 class Client:
@@ -39,9 +39,14 @@ class DB:
 app = Flask(__name__)
 db = DB()
 clients = {}
-maxClients = 5
+config = ConfigParser.RawConfigParser()
+config.read('config.conf')
 
-# 私有变量，部署后修改
-app.secret_key = 'try me' # 修改成私有字符串
-username = 'admin'
-password = '123456'
+# 私有变量
+maxClients = int(config.get('misc', 'maxClients'))
+listen_port = int(config.get('misc', 'listen_port'))
+webserv_port = int(config.get('misc', 'webserv_port'))
+
+app.secret_key = config.get('security', 'session_key')
+username = config.get('security', 'username')
+password = config.get('security', 'password')

@@ -1,6 +1,5 @@
 # coding: UTF-8
 # 此脚本用于清除所有导出数据以及重置数据库，请小心使用
-
 def init():
 	import sqlite3, os, platform
 

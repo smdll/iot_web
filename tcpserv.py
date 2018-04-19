@@ -17,7 +17,7 @@ class tcpserv:
 	def recvThd(self):
 		recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		recv.bind(('localhost', 1234))
+		recv.bind(('localhost', listen_port))
 		recv.listen(maxClients)
 		while True:
 			sock, addr = recv.accept()
