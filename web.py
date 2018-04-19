@@ -15,7 +15,6 @@ def home():
 	return send_from_directory('./html', 'index.html')
 
 # JSON发送数据至前端
-################可以用jsonify
 @app.route('/getData', methods = ['GET'])
 def jsGetData():
 	if 'admin' not in session:
@@ -25,10 +24,10 @@ def jsGetData():
 	else:
 		content = '{'
 		for i in clients:
-			content += '"' + clients[i].id + '":'
+			content += '"' + i + '":'
 			content += '{'
 			content += '"id":"' + clients[i].id + '", '
-			content += '"date":"' + clients[i].date + '", '
+			content += '"date":"' + clients[i].date + '  ' + clients[i].time + '", '
 			content += '"temp":"' + clients[i].temp + '", '
 			content += '"humid":"' + clients[i].humid + '", '
 			content += '"lux":"' + clients[i].lux + '", '
@@ -56,17 +55,27 @@ def valveHandle():
 	return ''
 
 # 下载记录
-@app.route('/downLog', methods = ['POST'])
+# POST与GET事件共存
+@app.route('/downLog', methods = ['POST', 'GET'])
 def downLog():
+	def generate(data):
+		header = ['设备编号', '温度', '湿度', '照度', '风速', '电磁阀', '时间', '日期']
+		text = ','.join(header) + '\n'
+		for i in data:
+			text += ','.join(i) + '\n'
+		text = text.decode('utf-8').encode('gbk')
+		yield text
+
 	if 'admin' not in session:
 		return redirect('/login')
 	date = db.getDates()
-	fr = request.form.get('from')
-	to = request.form.get('to')
+	fr = min(request.form.get('from'), request.form.get('to'))
+	to = max(request.form.get('from'), request.form.get('to'))
 	if fr and to in date:
 		dataSet = db.getData(fr, to)
-		fname = saveFile(dataSet, fr, to)
-		return send_from_directory('.', fname, as_attachment = True)
+		rep = Response(generate(dataSet), mimetype = 'text/csv')
+		rep.headers['Content-Disposition'] = 'filename=%s'%'%s_%s.csv'%(fr, to)
+		return rep
 	return send_from_directory('./html', 'download.html')
 
 # JSON发送日期至前端
@@ -78,8 +87,11 @@ def jsGetDate():
 	return jsonify(date)
 
 # 登录页面
-@app.route('/login', methods = ['POST'])
+# POST与GET事件共存
+@app.route('/login', methods = ['POST', 'GET'])
 def login():
+	if 'admin' in session:
+		return redirect('/')
 	if request.form.get('username') == username and request.form.get('password') == password:
 		session[request.form.get('username')] = True
 		return redirect('/')
@@ -91,31 +103,6 @@ def logout():
 	if 'admin' in session:
 		session.pop('admin')
 	return redirect('/login')
-#--------------------------------
-
-
-#----------各种处理函数----------
-# 电磁阀状态
-def getValveStat(input):
-	input = int(input)
-	result = []
-	for i in range(3):
-		if input & 1 == 1:
-			result.append(' checked="true"')
-		else:
-			result.append('')
-		input = input >> 1
-	return result
-
-# 保存文件
-def saveFile(data, fr, to):
-	fname = '%s_%s.csv'%(fr, to)
-	with codecs.open(fname, 'wb', 'gbk') as csvfile:
-		writer = csv.writer(csvfile, dialect = 'excel')
-		writer.writerow(['设备编号', '温度', '湿度', '照度', '风速', '电磁阀', '时间', '日期'])
-		for i in data:
-			writer.writerow(i)
-	return fname
 #--------------------------------
 
 # 主函数

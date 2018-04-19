@@ -5,14 +5,11 @@ def init():
 	import sqlite3, os, platform
 
 	sysstr = platform.system()
-	if sysstr == 'Windows':
-		if os.path.exists('history.db'):
-			os.system('del history.db')
-		os.system('del *.csv')
-	elif sysstr == 'Linux':
-		if os.path.exists('history.db'):
-			os.system('rm -f history.db')
-		os.system('rm -f *.csv')
+	if os.path.exists('history.db'):
+		if sysstr == 'Windows':
+				os.system('del history.db')
+		elif sysstr == 'Linux':
+				os.system('rm -f history.db')
 	else:
 		return
 
