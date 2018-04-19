@@ -1,12 +1,29 @@
 # coding: UTF-8
 from flask import *
-import csv, codecs, sys
+import csv, codecs, sys, json
 from global_vars import *
 from tcpserv import tcpserv
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-#------------页面部分------------
+# 登录页面
+# POST与GET事件共存
+@app.route('/login', methods = ['POST', 'GET'])
+def login():
+	if 'admin' in session:
+		return redirect('/')
+	if request.form.get('username') == username and request.form.get('password') == password:
+		session[request.form.get('username')] = True
+		return redirect('/')
+	return send_from_directory('./html', 'login.html')
+
+# 登出页面
+@app.route('/logout')
+def logout():
+	if 'admin' in session:
+		session.pop('admin')
+	return redirect('/login')
+
 # 根页面
 @app.route('/')
 def home():
@@ -14,45 +31,6 @@ def home():
 		return redirect('/login')
 	return send_from_directory('./html', 'index.html')
 
-# JSON发送数据至前端
-@app.route('/getData', methods = ['GET'])
-def jsGetData():
-	if 'admin' not in session:
-		return ''
-	if not clients:
-		return ''
-	else:
-		content = '{'
-		for i in clients:
-			content += '"' + i + '":'
-			content += '{'
-			content += '"id":"' + clients[i].id + '", '
-			content += '"date":"' + clients[i].date + '  ' + clients[i].time + '", '
-			content += '"temp":"' + clients[i].temp + '", '
-			content += '"humid":"' + clients[i].humid + '", '
-			content += '"lux":"' + clients[i].lux + '", '
-			content += '"spd":"' + clients[i].spd + '", '
-			content += '"valve":"' + clients[i].valve + '"},'
-		content = content[:-1] + '}'
-	return content
-			
-# 电磁阀
-# POST事件用于根页面电磁阀状态更改的数据处理
-@app.route('/valveHandle', methods = ['POST'])
-def valveHandle():
-	if 'admin' not in session:
-		return redirect('/login')
-	id = request.form.get('id')
-	if id in clients:
-		valve_stat = 0
-		for i in request.form:
-			if i == 'id':
-				continue
-			valve_stat += pow(2, int(request.form.get(i)))
-		clients[id].valve = str(valve_stat)
-		return redirect('/')
-
-	return ''
 
 # 下载记录
 # POST与GET事件共存
@@ -78,6 +56,45 @@ def downLog():
 		return rep
 	return send_from_directory('./html', 'download.html')
 
+# 电磁阀
+# POST事件用于根页面电磁阀状态更改的数据处理
+@app.route('/valveHandle', methods = ['POST'])
+def valveHandle():
+	if 'admin' not in session:
+		return redirect('/login')
+	data = request.get_data()
+	dict = json.loads(data)
+	valve_stat = 0
+	id = str(dict['id'])
+	if clients_lock.acquire():
+		if id in clients:
+			clients[id].valve = str(dict['valve'])
+		clients_lock.release()
+	return ''
+
+# JSON发送数据至前端
+@app.route('/getData', methods = ['GET'])
+def jsGetData():
+	if 'admin' not in session:
+		return ''
+	content = ''
+	if clients_lock.acquire():
+		if clients:
+			content += '{'
+			for i in clients:
+				content += '"' + i + '":'
+				content += '{'
+				content += '"id":"' + clients[i].id + '", '
+				content += '"date":"' + clients[i].date + '  ' + clients[i].time + '", '
+				content += '"temp":"' + clients[i].temp + '", '
+				content += '"humid":"' + clients[i].humid + '", '
+				content += '"lux":"' + clients[i].lux + '", '
+				content += '"spd":"' + clients[i].spd + '", '
+				content += '"valve":"' + clients[i].valve + '"},'
+			content = content[:-1] + '}'
+		clients_lock.release()
+	return content
+
 # JSON发送日期至前端
 @app.route('/getDate', methods = ['GET'])
 def jsGetDate():
@@ -86,27 +103,8 @@ def jsGetDate():
 	date = db.getDates()
 	return jsonify(date)
 
-# 登录页面
-# POST与GET事件共存
-@app.route('/login', methods = ['POST', 'GET'])
-def login():
-	if 'admin' in session:
-		return redirect('/')
-	if request.form.get('username') == username and request.form.get('password') == password:
-		session[request.form.get('username')] = True
-		return redirect('/')
-	return send_from_directory('./html', 'login.html')
-
-# 登出页面
-@app.route('/logout')
-def logout():
-	if 'admin' in session:
-		session.pop('admin')
-	return redirect('/login')
-#--------------------------------
-
 # 主函数
 if __name__ == '__main__':
-	serv = tcpserv(clients, db)
+	serv = tcpserv()
 	serv.start()
 	app.run(port = webserv_port, debug = True, use_reloader = False)

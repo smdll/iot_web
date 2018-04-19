@@ -4,9 +4,7 @@ import socket, threading
 from global_vars import *
 from time import localtime, strftime
 class tcpserv:
-	def __init__(self, clients, db):
-		self.clients = clients
-		self.db = db
+	def __init__(self):
 		self.t = threading.Thread(target = self.recvThd)
 		self.t.setDaemon(True)
 
@@ -27,23 +25,25 @@ class tcpserv:
 	# 提交数据
 	# 建立TCP服务器和多线程来处理设备提交的新数据，提交完后返回电磁阀状态
 	# rx:id,temp,humid,lux,spd,valve
-	# rx:bye(end)
 	# tx:valve(new)
 	def post(self, sock, addr):
 		print '%s:%s established'%addr
 		while True:
-			rawdata = sock.recv(1024)
-			if rawdata == 'bye':
+			try:
+				rawdata = sock.recv(1024)
+				valve, data = self.parse(rawdata)
+				id = data['id']
+				if clients_lock.acquire():
+					if not clients.has_key(id):
+						clients[id] = Client(valve, **data)
+					else:
+						clients[id].update(**data)
+					db.addData(valve = clients[id].valve, **data)
+					valve = clients[id].valve
+					clients_lock.release()
+					sock.send(valve)
+			except:
 				break
-			valve, data = self.parse(rawdata)
-
-			id = data['id']
-			if not self.clients.has_key(id):
-				self.clients[id] = Client(valve, **data)
-			else:
-				self.clients[id].update(**data)
-			sock.send(self.clients[id].valve)
-			self.db.addData(valve = self.clients[id].valve, **data)
 		print '%s:%s closed'%addr
 		sock.close()
 

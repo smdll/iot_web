@@ -1,6 +1,11 @@
 <html>
 	<head>
 		<script type="text/javascript">
+			var xmlhttp;
+			if (window.XMLHttpRequest)
+				xmlhttp = new XMLHttpRequest();
+			else
+				xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
 			function valveStat(input) {
 				var valve = parseInt(input);
 				var result = new Array();
@@ -14,11 +19,6 @@
 				return result;
 			}
 			function refresh() {
-				var xmlhttp;
-				if (window.XMLHttpRequest)
-					xmlhttp = new XMLHttpRequest();
-				else
-					xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
 				xmlhttp.onreadystatechange = function() {
 					if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
 						var response = xmlhttp.responseText;
@@ -28,8 +28,7 @@
 						else {
 							var jsonArr = JSON.parse(response);
 							for(var i in jsonArr) {
-								data += '<form action="/valveHandle" method="post"><fieldset>';
-								data += "<legend>编号: " + jsonArr[i].id + "</legend>";
+								data += "<fieldset><legend>编号: " + jsonArr[i].id + "</legend>";
 								data += "最后更新: " + jsonArr[i].date + "<br>";
 								data += "温度: " + jsonArr[i].temp + "<br>";
 								data += "湿度: " + jsonArr[i].humid + "<br>";
@@ -37,11 +36,10 @@
 								data += "风速: " + jsonArr[i].spd + "<br>";
 								data += "<label>电磁阀状态:</label>";
 								var stat = valveStat(jsonArr[i].valve);
-								data += '<input type="hidden" name="id" value="' + jsonArr[i].id + '">';
-								data += '<label><input type="checkbox" value="0" name="cli' + jsonArr[i].id + '_1"' + stat[0] + '>3</label>';
-								data += '<label><input type="checkbox" value="1" name="cli' + jsonArr[i].id + '_2"' + stat[1] + '>2</label>';
-								data += '<label><input type="checkbox" value="2" name="cli' + jsonArr[i].id + '_3"' + stat[2] + '>1</label>';
-								data += '<label><input type="submit" value="设置"></fieldset></form>';
+								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[0] + '>3</label>';
+								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[1] + '>2</label>';
+								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[2] + '>1</label>';
+								data += '<label><input id="' + jsonArr[i].id + '" type="button" value="设置" onclick="post(event)"/></fieldset>';
 							}
 						}
 						document.getElementById("data").innerHTML = data;
@@ -50,7 +48,23 @@
 				xmlhttp.open("GET", "/getData", true);
 				xmlhttp.send();
 			}
-			refresh()
+			function post(event) {
+				var id = event.currentTarget.id;
+				var valve = document.getElementsByName("cli" + id);
+				var data = '{"id":"' + id + '",';
+				var stat = 0;
+				if(valve[0].checked)
+					stat += 1;
+				if(valve[1].checked)
+					stat += 2;
+				if(valve[2].checked)
+					stat += 4;
+				data += '"valve":"' + String(stat) + '"}';
+				xmlhttp.open("POST", "/valveHandle", true);
+				xmlhttp.send(data);
+				xmlhttp.onreadystatechange = function() {return}//清除返回内容
+			}
+			refresh();
 			window.setInterval('refresh()', 5000);
 		</script>
 	</head>

@@ -2,6 +2,7 @@
 # 全局变量、类定义
 from flask import Flask
 import sqlite3, ConfigParser
+from threading import Lock
 
 # 设备信息类
 class Client:
@@ -36,9 +37,10 @@ class DB:
 		return set
 
 # 初始化全局变量
-app = Flask(__name__)
+app = Flask('__main__')
 db = DB()
 clients = {}
+clients_lock = Lock()# 防止线程间冲突
 config = ConfigParser.RawConfigParser()
 config.read('config.conf')
 
