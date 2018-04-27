@@ -28,12 +28,13 @@
 						else {
 							var jsonArr = JSON.parse(response);
 							for(var i in jsonArr) {
-								data += "<fieldset><legend>编号: " + jsonArr[i].id + "</legend>";
+								data += "<fieldset><legend>监测点" + jsonArr[i].id + "</legend>";
 								data += "最后更新: " + jsonArr[i].date + "<br>";
-								data += "温度: " + jsonArr[i].temp + "<br>";
-								data += "湿度: " + jsonArr[i].humid + "<br>";
-								data += "照度: " + jsonArr[i].lux + "<br>";
-								data += "风速: " + jsonArr[i].spd + "<br>";
+								data += "温度: " + jsonArr[i].temp + "°C<br>";
+								data += "湿度: " + jsonArr[i].humid + "%<br>";
+								data += "照度: " + jsonArr[i].lux + "lux<br>";
+								data += "风速: " + jsonArr[i].spd + "m/s<br>";
+								data += "电池电压: " + jsonArr[i].volt + "V<br>";
 								data += "<label>电磁阀状态:</label>";
 								var stat = valveStat(jsonArr[i].valve);
 								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[0] + '>3</label>';

@@ -37,7 +37,7 @@ def home():
 @app.route('/downLog', methods = ['POST', 'GET'])
 def downLog():
 	def generate(data):
-		header = ['设备编号', '温度', '湿度', '照度', '风速', '电磁阀', '时间', '日期']
+		header = ['设备编号', '温度', '湿度', '照度', '风速', '电磁阀', '电压', '时间', '日期']
 		text = ','.join(header) + '\n'
 		for i in data:
 			text += ','.join(i) + '\n'
@@ -90,6 +90,7 @@ def jsGetData():
 				content += '"humid":"' + clients[i].humid + '", '
 				content += '"lux":"' + clients[i].lux + '", '
 				content += '"spd":"' + clients[i].spd + '", '
+				content += '"volt":"' + clients[i].volt + '", '
 				content += '"valve":"' + clients[i].valve + '"},'
 			content = content[:-1] + '}'
 		clients_lock.release()
@@ -107,4 +108,10 @@ def jsGetDate():
 if __name__ == '__main__':
 	serv = tcpserv()
 	serv.start()
-	app.run(port = webserv_port, debug = True, use_reloader = False)
+	app.run(port = webserv_port, debug = is_debug, use_reloader = False)
+
+'''
+TODO:
+	第二个电磁阀显示框
+	图表
+'''

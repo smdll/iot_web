@@ -46,8 +46,10 @@ config.read('config.conf')
 
 # 私有变量
 maxClients = int(config.get('misc', 'maxClients'))
+ip_addr = config.get('misc', 'ip_addr')
 listen_port = int(config.get('misc', 'listen_port'))
 webserv_port = int(config.get('misc', 'webserv_port'))
+is_debug = config.get('misc', 'debug')
 
 app.secret_key = config.get('security', 'session_key')
 username = config.get('security', 'username')

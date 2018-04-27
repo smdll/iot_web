@@ -8,11 +8,10 @@ s.connect(('localhost', 1234))
 while True:
 	try:
 		valve = '7'
-		s.send('%s,%d,%d,%d,%d,%s'%(id, randint(15, 30), randint(30, 60), randint(1000, 100000), randint(0, 5), valve))
+		s.send('%s,%d,%d,%d,%d,%.1f,%s'%(id, randint(15, 30), randint(30, 60), randint(1000, 100000), randint(0, 5), uniform(11.2, 16.8), valve))
 		valve = s.recv(1024)
 		print valve
 		time.sleep(5)
 	except KeyboardInterrupt, Exception:
-		s.send('bye')
 		s.close()
 		break

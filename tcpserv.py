@@ -15,7 +15,7 @@ class tcpserv:
 	def recvThd(self):
 		recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		recv.bind(('localhost', listen_port))
+		recv.bind((ip_addr, listen_port))
 		recv.listen(maxClients)
 		while True:
 			sock, addr = recv.accept()
@@ -28,9 +28,12 @@ class tcpserv:
 	# tx:valve(new)
 	def post(self, sock, addr):
 		print '%s:%s established'%addr
+		sock.settimeout(20) # 设置超时20秒
 		while True:
 			try:
 				rawdata = sock.recv(1024)
+				if not self.isValid(rawdata):
+					break
 				valve, data = self.parse(rawdata)
 				id = data['id']
 				if clients_lock.acquire():
@@ -41,7 +44,7 @@ class tcpserv:
 					db.addData(valve = clients[id].valve, **data)
 					valve = clients[id].valve
 					clients_lock.release()
-					sock.send(valve)
+					sock.send('!' + valve)
 			except:
 				break
 		print '%s:%s closed'%addr
@@ -50,12 +53,20 @@ class tcpserv:
 	# 数据解析
 	def parse(self, input):
 		data = input.split(',')
-		valve = data[5]
+		valve = data[6]
 		data = {'id':  data[0],
 				'temp': data[1],
 				'humid': data[2],
 				'lux': data[3],
-				'spd': data[4]}
+				'spd': data[4],
+				'volt': data[5]}
 		data['date'] = strftime('%Y-%m-%d', localtime())
 		data['time'] = strftime('%H:%M:%S', localtime())
 		return valve, data
+
+	# 检查数据是否合法
+	def isValid(self, input):
+		data = input.split(',')
+		if len(data) == 7:
+			return True
+		return False
