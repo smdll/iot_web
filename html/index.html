@@ -1,5 +1,6 @@
 <html>
 	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<script type="text/javascript">
 			var xmlhttp;
 			if (window.XMLHttpRequest)
@@ -35,11 +36,16 @@
 								data += "照度: " + jsonArr[i].lux + "lux<br>";
 								data += "风速: " + jsonArr[i].spd + "m/s<br>";
 								data += "电池电压: " + jsonArr[i].volt + "V<br>";
-								data += "<label>电磁阀状态:</label>";
+								data += "<label >电磁阀状态:</label>";
 								var stat = valveStat(jsonArr[i].valve);
-								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[0] + '>3</label>';
-								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[1] + '>2</label>';
-								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + stat[2] + '>1</label>';
+								data += '<label><input type="checkbox" disabled="true"' + stat[0] + '>3</label>';
+								data += '<label><input type="checkbox" disabled="true"' + stat[1] + '>2</label>';
+								data += '<label><input type="checkbox" disabled="true"' + stat[2] + '>1</label>';
+								var cont = valveStat(jsonArr[i].cont);
+								data += "<br /><label>电磁阀控制:</label>";
+								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + cont[0] + '>3</label>';
+								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + cont[1] + '>2</label>';
+								data += '<label><input type="checkbox" name="cli' + jsonArr[i].id + '"' + cont[2] + '>1</label>';
 								data += '<label><input id="' + jsonArr[i].id + '" type="button" value="设置" onclick="post(event)"/></fieldset>';
 							}
 						}

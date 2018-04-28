@@ -15,7 +15,8 @@ def init():
 	conn = sqlite3.connect('history.db')
 	cur = conn.cursor()
 
-	cur.execute('CREATE TABLE History(id TEXT, temp TEXT, humid TEXT, lux TEXT, spd TEXT, valve TEXT, volt TEXT, time TEXT, date TEXT)')
+	cur.execute('CREATE TABLE History(id TEXT, temp TEXT, humid TEXT, lux TEXT, spd TEXT, volt TEXT, time TEXT, date TEXT)')
+	cur.execute('CREATE TABLE Valve(id INTEGER PRIMARY KEY, control TEXT, stat TEXT)')
 	conn.commit()
 
 if __name__ == '__main__':
