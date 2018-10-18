@@ -1,38 +1,43 @@
 # coding: UTF-8
 from flask import *
-import csv, codecs, sys, json, sqlite3, ConfigParser
+import csv, codecs, sys, json, MySQLdb, ConfigParser
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
 # 数据库类
 class DB:
 	def __init__(self):
-		self.conn = sqlite3.connect('history.db', check_same_thread = False)
-		self.cur = self.conn.cursor()
+		self.conn = MySQLdb.connect('localhost', 'root', '', 'iot')
 
 	def getDates(self):
-		set = self.cur.execute('SELECT DISTINCT date FROM History ORDER BY date DESC').fetchall()
+		cur = self.conn.cursor()
+		set = cur.execute('SELECT UNIQUE date FROM History ORDER BY date DESC').fetchall()
 		result = [i[0] for i in set]
 		return result
 
 	def getData(self, fr, to):
-		set = self.cur.execute('SELECT * FROM History WHERE date BETWEEN "%s" AND "%s" ORDER BY date ASC'%(fr, to)).fetchall()
+		cur = self.conn.cursor()
+		cur.execute('SELECT * FROM History WHERE date BETWEEN "%s" AND "%s" ORDER BY date ASC'%(fr, to)).fetchall()
 		return set
 	
 	def getNewest(self):
-		set = self.cur.execute('SELECT * FROM History ORDER BY id').fetchall()
+		cur = self.conn.cursor()
+		set = cur.execute('SELECT * FROM History ORDER BY id').fetchall()
 		return set
 
 	def setValve(self, id, valve):
-		self.cur.execute('UPDATE Valve SET control="%s", stat="%s" WHERE id=%s'%(valve, valve, id))
+		cur = self.conn.cursor()
+		cur.execute('UPDATE Valve SET control="%s", stat="%s" WHERE id=%s'%(valve, valve, id))
 		self.conn.commit()
 
 	def getValve(self, id):
-		stat = self.cur.execute('SELECT stat FROM Valve WHERE id=%s'%id).fetchone()[0]
+		cur = self.conn.cursor()
+		stat = cur.execute('SELECT stat FROM Valve WHERE id=%s'%id).fetchone()[0]
 		return stat
 
 	def getCont(self, id):
-		stat = self.cur.execute('SELECT control FROM Valve WHERE id=%s'%id).fetchone()[0]
+		cur = self.conn.cursor()
+		stat = cur.execute('SELECT control FROM Valve WHERE id=%s'%id).fetchone()[0]
 		return stat
 
 app = Flask('__main__')
@@ -133,6 +138,7 @@ def jsGetData():
 			content += '"cont":"' + db.getCont(i[0]) + '", '
 			content += '"valve":"' + db.getValve(i[0]) + '"},'
 		content = content[:-1] + '}'
+
 	return content
 
 # JSON发送日期至前端

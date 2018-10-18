@@ -1,27 +1,29 @@
 # coding: UTF-8
 # TCP服务器类
-import socket, threading, traceback, sqlite3, ConfigParser
+import socket, threading, MySQLdb, ConfigParser, traceback
 from time import localtime, strftime
 
 # 数据库类
 class DB:
 	def __init__(self):
-		self.conn = sqlite3.connect('history.db', check_same_thread = False)
-		self.cur = self.conn.cursor()
+		self.conn = MySQLdb.connect('localhost', 'root', '', 'iot')
 
 	def addData(self, **kw):
-		sql = ("INSERT INTO History(%s) VALUES (%s)"%
+		cur = self.conn.cursor()
+		sql = ('INSERT INTO History(%s) VALUES ("%s")'%
 				(", ".join(kw.keys()),
-				 ", ".join("?" for _v in kw.values())))
-		self.cur.execute(sql, kw.values())
+				 '", "'.join(kw.values())))
+		cur.execute(sql)
 		self.conn.commit()
 
 	def setValve(self, id, valve):
-		self.cur.execute('INSERT OR IGNORE INTO Valve(id, control, stat) VALUES(%s, "%s", "%s")'%(id, valve, valve))##########插入冗余数据问题
+		cur = self.conn.cursor()
+		cur.execute('INSERT INTO Valve(id, control, stat) VALUES(%s, "%s", "%s") ON DUPLICATE KEY UPDATE control="%s",stat="%s"'%(id, valve, valve, valve, valve))
 		self.conn.commit()
 
 	def getValve(self, id):
-		stat = self.cur.execute('SELECT control FROM Valve WHERE id=%s'%id).fetchone()[0]
+		cur = self.conn.cursor()
+		stat = cur.execute('SELECT control FROM Valve WHERE id=%s'%id).fetchone()[0]
 		return stat
 
 db = DB()
@@ -31,17 +33,7 @@ config.read('config.conf')
 maxClients = int(config.get('misc', 'maxClients'))
 ip_addr = config.get('misc', 'ip_addr')
 listen_port = int(config.get('misc', 'listen_port'))
-
-# Socket监听线程
-def recvThd():
-	recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	recv.bind((ip_addr, listen_port))
-	recv.listen(maxClients)
-	while True:
-		sock, addr = recv.accept()
-		t = threading.Thread(target = post, args=(sock, addr))
-		t.start()
+debug = eval(config.get('misc', 'debug'))
 
 # 提交数据
 # 建立TCP服务器和多线程来处理设备提交的新数据，提交完后返回电磁阀状态
@@ -53,16 +45,17 @@ def post(sock, addr):
 	while True:
 		try:
 			rawdata = sock.recv(1024)
+			print '%s:%s sends '%addr + rawdata
 			if not isValid(rawdata):
 				break
 			valve, data = parse(rawdata)
 			id = data['id']
 			db.addData(**data)
 			db.setValve(id, valve)
-			#!7
 			sock.send('!' + db.getValve(id))
 		except:
-			traceback.print_exc()
+			if debug:
+				print traceback.print_exc()
 			break
 	print '%s:%s closed'%addr
 	sock.close()
@@ -89,6 +82,11 @@ def isValid(input):
 	return False
 
 if __name__ == '__main__':
-	t = threading.Thread(target = recvThd)
-	print 'thread started'
-	t.start()
+	recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	recv.bind((ip_addr, listen_port))
+	recv.listen(maxClients)
+	while True:
+		sock, addr = recv.accept()
+		t = threading.Thread(target = post, args=(sock, addr))
+		t.start()

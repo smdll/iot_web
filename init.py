@@ -1,22 +1,15 @@
 # coding: UTF-8
 # 此脚本用于清除所有导出数据以及重置数据库，请小心使用
 def init():
-	import sqlite3, os, platform
+	import MySQLdb
 
-	sysstr = platform.system()
-	if os.path.exists('history.db'):
-		if sysstr == 'Windows':
-				os.system('del history.db')
-		elif sysstr == 'Linux':
-				os.system('rm -f history.db')
-	else:
-		return
-
-	conn = sqlite3.connect('history.db')
+	conn = MySQLdb.connect('localhost', 'root', '', 'iot')
 	cur = conn.cursor()
 
-	cur.execute('CREATE TABLE History(id TEXT, temp TEXT, humid TEXT, lux TEXT, spd TEXT, volt TEXT, time TEXT, date TEXT)')
-	cur.execute('CREATE TABLE Valve(id INTEGER PRIMARY KEY, control TEXT, stat TEXT)')
+	cur.execute('DROP TABLE IF EXISTS History')
+	cur.execute('DROP TABLE IF EXISTS Valve')
+	cur.execute('CREATE TABLE History(id TINYTEXT , temp TINYTEXT , humid TINYTEXT , lux TINYTEXT , spd TINYTEXT , volt TINYTEXT , time TINYTEXT , date TINYTEXT )')
+	cur.execute('CREATE TABLE Valve(id TINYINT PRIMARY KEY, control TINYTEXT , stat TINYTEXT )')
 	conn.commit()
 
 if __name__ == '__main__':
